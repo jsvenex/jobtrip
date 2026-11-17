@@ -24,27 +24,16 @@ export const SOURCES = [
   'Hiredly',
   'MyFutureJobs',
   'Maukerja',
+  'Indeed',
+  'Glassdoor',
   'Company Website',
   'Career Fair',
   'Referral',
   'Other',
 ] as const;
 
-export const LOCATIONS = [
-  'Kuala Lumpur',
-  'Petaling Jaya',
-  'Cyberjaya',
-  'Shah Alam',
-  'Penang',
-  'Johor Bahru',
-  'Melaka',
-  'Remote',
-  'Other',
-] as const;
-
 export interface Job {
   id: string;
-  key: string; // Jira-style issue key, e.g. JT-12
   company: string;
   role: string;
   location: string;
@@ -57,4 +46,57 @@ export interface Job {
   dateApplied: string; // yyyy-mm-dd or ''
   url: string;
   notes: string;
+
+  /** Timeline of status changes and manual updates. */
+  history?: HistoryEntry[];
+
+  // Interview stage
+  interviews?: Interview[];
+  prep?: ChecklistItem[];
+  // Offer stage
+  decision?: Decision;
+  offerDeadline?: string;
+  offerSalary?: number; // MYR / month
+  allowance?: number; // MYR / month
+  startDate?: string;
+  probation?: string;
+  benefits?: string;
 }
+
+export interface HistoryEntry {
+  id: string;
+  date: string; // yyyy-mm-dd
+  kind: 'status' | 'note';
+  status?: Status;
+  text?: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export const INTERVIEW_ROUNDS = [
+  'HR screening',
+  'Online assessment',
+  'Technical interview',
+  'Panel interview',
+  'Final interview',
+  'Other',
+] as const;
+export const INTERVIEW_MODES = ['Online', 'On-site', 'Phone'] as const;
+
+export interface Interview {
+  id: string;
+  round: string;
+  date: string;
+  time: string; // HH:MM
+  mode: string;
+  where: string; // meeting link or address
+  interviewer: string;
+  done: boolean;
+}
+
+export const DECISIONS = ['Pending', 'Negotiating', 'Accepted', 'Declined'] as const;
+export type Decision = (typeof DECISIONS)[number];

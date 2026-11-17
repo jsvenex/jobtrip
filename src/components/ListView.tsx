@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { STATUSES, STATUS_LABEL, type Job, type Status } from '../types';
-import { formatDate, formatSalary } from '../utils';
+import { describeNext, formatDate, formatSalary, nextStep } from '../utils';
 import { Avatar, PriorityIcon } from './Badges';
 import StatusStepper from './StatusStepper';
 
-type SortKey = 'key' | 'company' | 'status' | 'dateApplied' | 'salaryMax';
+type SortKey = 'company' | 'status' | 'dateApplied' | 'salaryMax';
 
 interface Props {
   jobs: Job[];
@@ -14,7 +14,6 @@ interface Props {
 }
 
 const COLUMNS: { key: SortKey; label: string }[] = [
-  { key: 'key', label: 'Key' },
   { key: 'company', label: 'Role / Company' },
   { key: 'status', label: 'Status' },
   { key: 'dateApplied', label: 'Applied' },
@@ -28,7 +27,6 @@ export default function ListView({ jobs, onMove, onOpen, onDelete }: Props) {
   const sorted = useMemo(() => {
     const val = (j: Job) =>
       sortKey === 'status' ? STATUSES.indexOf(j.status)
-      : sortKey === 'key' ? Number(j.key.split('-')[1])
       : sortKey === 'salaryMax' ? j.salaryMax ?? j.salaryMin ?? 0
       : j[sortKey];
     return [...jobs].sort((a, b) => {
@@ -58,22 +56,29 @@ export default function ListView({ jobs, onMove, onOpen, onDelete }: Props) {
                 {c.label} {sortKey === c.key && (asc ? '↑' : '↓')}
               </th>,
               c.key === 'status' && <th key="progress" className="no-sort">Progress</th>,
+              c.key === 'status' && <th key="next" className="no-sort">Next step</th>,
             ])}
-            <th>Location</th>
-            <th>Source</th>
+            <th className="no-sort">Location / Source</th>
             <th aria-label="Actions" />
           </tr>
         </thead>
         <tbody>
           {sorted.map((j) => (
             <tr key={j.id} onClick={() => onOpen(j)}>
-              <td className="issue-key">{j.key}</td>
               <td>
                 <div className="role-cell">
                   <Avatar name={j.company} />
                   <div>
                     <div className="role">{j.role}</div>
-                    <div className="muted">{j.company}</div>
+                    <div className="muted">
+                      {j.company}
+                      {j.url && (
+                        <>
+                          {' · '}
+                          <a className="row-link" href={j.url} target="_blank" rel="noreferrer" title={j.url} onClick={(e) => e.stopPropagation()}>Open ↗</a>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <PriorityIcon priority={j.priority} />
                 </div>
@@ -95,13 +100,21 @@ export default function ListView({ jobs, onMove, onOpen, onDelete }: Props) {
               <td className="progress-cell">
                 {j.status === 'wishlist' ? <span className="muted">Not applied yet</span> : <StatusStepper status={j.status} compact />}
               </td>
+              <td>
+                {(() => {
+                  const step = nextStep(j);
+                  return step ? <span className={`next-chip${step.overdue ? ' overdue' : step.days <= 2 ? ' soon' : ''}`}>{describeNext(step)}</span> : <span className="muted">—</span>;
+                })()}
+              </td>
               <td>{formatDate(j.dateApplied)}</td>
               <td>{formatSalary(j)}</td>
-              <td>{j.location}</td>
-              <td>{j.source}</td>
+              <td>
+                <div>{j.location || '—'}</div>
+                <div className="muted">{j.source}</div>
+              </td>
               <td onClick={(e) => e.stopPropagation()}>
-                <button className="icon-btn" title="Delete" aria-label={`Delete ${j.key}`} onClick={() => onDelete(j)}>
-                  🗑
+                <button className="row-delete" aria-label={`Delete ${j.role}`} onClick={() => onDelete(j)}>
+                  Delete
                 </button>
               </td>
             </tr>

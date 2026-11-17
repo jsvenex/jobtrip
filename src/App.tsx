@@ -1,20 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Logo from './components/Logo';
 import BoardView from './components/BoardView';
 import ListView from './components/ListView';
 import JobModal from './components/JobModal';
+import Insights from './components/Insights';
+import PayCalculator, { newScenario, type Scenario } from './components/PayCalculator';
 import { JOB_TYPES, PRIORITIES, STATUSES, STATUS_LABEL, type Job, type Status } from './types';
 import { useJobs } from './useJobs';
 
 type View = 'board' | 'list';
+type Page = 'apps' | 'insights' | 'pay';
 type ModalState = { job: Job | null; status: Status } | null;
 type Filters = { status: string; priority: string; type: string; location: string; source: string };
 const NO_FILTERS: Filters = { status: 'all', priority: 'all', type: 'all', location: 'all', source: 'all' };
 
+const NAV: [Page, string][] = [
+  ['apps', 'Applications'],
+  ['insights', 'Insights'],
+  ['pay', 'Take-home pay'],
+];
+
 const readView = (): View => {
   try {
-    return localStorage.getItem('jobtrip:view') === 'list' ? 'list' : 'board';
+    return localStorage.getItem('jobtrip:view') === 'board' ? 'board' : 'list';
   } catch {
-    return 'board';
+    return 'list';
   }
 };
 
@@ -24,6 +34,8 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [modal, setModal] = useState<ModalState>(null);
+  const [page, setPage] = useState<Page>('apps');
+  const [calc, setCalc] = useState<{ key: number; seed: Scenario[] }>({ key: 0, seed: [] });
   const [showFilters, setShowFilters] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -55,7 +67,7 @@ export default function App() {
         (filters.type === 'all' || j.type === filters.type) &&
         (filters.location === 'all' || j.location === filters.location) &&
         (filters.source === 'all' || j.source === filters.source) &&
-        (!q || [j.company, j.role, j.key, j.location, j.source].some((f) => f.toLowerCase().includes(q))),
+        (!q || [j.company, j.role, j.location, j.source].some((f) => f.toLowerCase().includes(q))),
     );
   }, [jobs, query, filters]);
 
@@ -77,23 +89,55 @@ export default function App() {
     };
   }, [jobs]);
 
+  const openPage = (p: Page) => {
+    // Opening the calculator from the menu starts blank; you add the offers you want to compare.
+    if (p === 'pay' && page !== 'pay') setCalc((c) => ({ key: c.key + 1, seed: [] }));
+    setPage(p);
+  };
+
+  const openCalculator = (gross: number | undefined, label: string) => {
+    setCalc((c) => ({ key: c.key + 1, seed: [newScenario(label, gross)] }));
+    setPage('pay');
+  };
+
   const confirmDelete = (j: Job) => {
-    if (confirm(`Delete ${j.key} – ${j.role} at ${j.company}?`)) remove(j.id);
+    if (confirm(`Delete ${j.role} at ${j.company}?`)) remove(j.id);
   };
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span className="logo">🧭</span> JobTrip
+          <Logo /> JobTrip
         </div>
-        <button className="btn primary" onClick={() => setModal({ job: null, status: 'applied' })}>
-          + Create
-        </button>
+        <nav className="nav" aria-label="Main">
+          {NAV.map(([id, label]) => (
+            <button key={id} className={page === id ? 'active' : ''} aria-current={page === id ? 'page' : undefined} onClick={() => openPage(id)}>
+              {label}
+            </button>
+          ))}
+        </nav>
       </header>
 
       <main className="page">
-        <p className="crumbs">Projects / My Job Hunt 2026</p>
+        {page === 'insights' && (
+          <>
+            <h1>Insights</h1>
+            <p className="subtitle">See how your job hunt is going and what's working.</p>
+            <Insights jobs={jobs} />
+          </>
+        )}
+
+        {page === 'pay' && (
+          <>
+            <h1>Take-home pay</h1>
+            <PayCalculator key={calc.key} initial={calc.seed} />
+          </>
+        )}
+
+        {page === 'apps' && (
+          <>
+        <p className="crumbs">Projects / My Job Hunt</p>
         <h1>Applications</h1>
         <p className="subtitle">Track every application from first click to offer letter.</p>
 
@@ -108,7 +152,7 @@ export default function App() {
           <input
             className="search"
             type="search"
-            placeholder="Search company, role, key…"
+            placeholder="Search company or role"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search applications"
@@ -140,13 +184,16 @@ export default function App() {
               </div>
             )}
           </div>
+          <button className="btn primary" onClick={() => setModal({ job: null, status: 'applied' })}>
+            + Add job
+          </button>
           <span className="spacer" />
           <div className="toggle" role="tablist" aria-label="View">
-            <button role="tab" aria-selected={view === 'board'} className={view === 'board' ? 'active' : ''} onClick={() => changeView('board')}>
-              ▦ Board
-            </button>
             <button role="tab" aria-selected={view === 'list'} className={view === 'list' ? 'active' : ''} onClick={() => changeView('list')}>
-              ☰ List
+              List
+            </button>
+            <button role="tab" aria-selected={view === 'board'} className={view === 'board' ? 'active' : ''} onClick={() => changeView('board')}>
+              Board
             </button>
           </div>
         </div>
@@ -160,6 +207,9 @@ export default function App() {
           />
         ) : (
           <ListView jobs={filtered} onMove={move} onOpen={(job) => setModal({ job, status: job.status })} onDelete={confirmDelete} />
+        )}
+
+          </>
         )}
 
         <footer className="page-foot">
@@ -178,6 +228,7 @@ export default function App() {
           onSave={save}
           onDelete={confirmDelete}
           onClose={() => setModal(null)}
+          onOpenCalculator={openCalculator}
         />
       )}
     </div>

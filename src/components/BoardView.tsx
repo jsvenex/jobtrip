@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { STATUSES, STATUS_LABEL, type Job, type Status } from '../types';
-import { formatSalary } from '../utils';
+import { describeNext, formatSalary, nextStep } from '../utils';
 import { PriorityIcon } from './Badges';
 
 interface Props {
@@ -59,11 +59,11 @@ export default function BoardView({ jobs, onMove, onOpen, onCreate }: Props) {
                   <h3 className="card-title">{job.role}</h3>
                   <p className="card-company">{job.company}</p>
                   <div className="card-meta">
-                    <span>📍 {job.location}</span>
+                    <span>{job.location}</span>
                     <span>{formatSalary(job)}</span>
                   </div>
+                  <NextChip job={job} />
                   <footer className="card-foot">
-                    <span className="issue-key">{job.key}</span>
                     <span className="chip">{job.type}</span>
                     <PriorityIcon priority={job.priority} />
                   </footer>
@@ -73,11 +73,17 @@ export default function BoardView({ jobs, onMove, onOpen, onCreate }: Props) {
             </div>
 
             <button className="create-btn" onClick={() => onCreate(status)}>
-              + Create
+              + Add job
             </button>
           </section>
         );
       })}
     </div>
   );
+}
+
+function NextChip({ job }: { job: Job }) {
+  const step = nextStep(job);
+  if (!step) return null;
+  return <div className={`next-chip${step.overdue ? ' overdue' : step.days <= 2 ? ' soon' : ''}`}>{describeNext(step)}</div>;
 }
